@@ -8,17 +8,23 @@
             box-sizing: border-box;
         }
 
+        html {
+            background: transparent;
+        }
+
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-            background: #1e1e1e;
+            background: transparent;
             color: white;
+            overflow: hidden;
         }
 
         #chat {
             height: calc(100vh - 80px);
             overflow-y: auto;
             padding: 20px;
+            background: transparent;
         }
 
         .message {
@@ -37,7 +43,7 @@
             right: 0;
             height: 80px;
             padding: 15px;
-            background: #111;
+            background: transparent;
             display: flex;
             gap: 10px;
         }
@@ -48,6 +54,8 @@
             padding: 12px;
             font-size: 16px;
             outline: none;
+            background: rgba(255, 255, 255, 0.9);
+            color: black;
         }
 
         #username {
@@ -64,10 +72,12 @@
             padding: 12px 25px;
             font-size: 16px;
             cursor: pointer;
+            background: rgba(255, 255, 255, 0.9);
+            color: black;
         }
 
         button:hover {
-            background: #cccccc;
+            background: rgba(204, 204, 204, 0.95);
         }
     </style>
 </head>
