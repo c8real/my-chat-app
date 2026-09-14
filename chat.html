@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #1e1e1e;
+            color: white;
+        }
+
+        #chat {
+            height: calc(100vh - 80px);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+
+        .username {
+            font-weight: bold;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            padding: 15px;
+            background: #111;
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            border: none;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        #username {
+            width: 160px;
+        }
+
+        #message {
+            flex: 1;
+        }
+
+        button {
+            border: none;
+            border-radius: 6px;
+            padding: 12px 25px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #cccccc;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="chat"></div>
+
+    <div id="controls">
+
+        <input
+            id="username"
+            type="text"
+            placeholder="Username"
+        >
+
+        <input
+            id="message"
+            type="text"
+            placeholder="Type a message..."
+        >
+
+        <button onclick="sendMessage()">
+            Send
+        </button>
+
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+    <script>
+
+        const socket = io();
+
+        function sendMessage() {
+
+            const username =
+                document.getElementById("username").value.trim();
+
+            const message =
+                document.getElementById("message").value.trim();
+
+            if (username === "" || message === "") {
+                return;
+            }
+
+            socket.emit("send_message", {
+                username: username,
+                message: message
+            });
+
+            document.getElementById("message").value = "";
+        }
+
+
+        socket.on("new_message", function(data) {
+
+            const chat =
+                document.getElementById("chat");
+
+            const messageDiv =
+                document.createElement("div");
+
+            messageDiv.className = "message";
+
+
+            const usernameSpan =
+                document.createElement("span");
+
+            usernameSpan.className = "username";
+
+            usernameSpan.textContent =
+                data.username + ": ";
+
+            usernameSpan.style.color =
+                data.color;
+
+
+            const messageSpan =
+                document.createElement("span");
+
+            messageSpan.textContent =
+                data.message;
+
+
+            messageDiv.appendChild(usernameSpan);
+            messageDiv.appendChild(messageSpan);
+
+            chat.appendChild(messageDiv);
+
+            chat.scrollTop =
+                chat.scrollHeight;
+        });
+
+
+        document
+            .getElementById("message")
+            .addEventListener("keydown", function(event) {
+
+                if (event.key === "Enter") {
+                    sendMessage();
+                }
+
+            });
+
+    </script>
+
+</body>
+</html>
