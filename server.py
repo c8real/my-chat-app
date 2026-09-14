@@ -60,8 +60,9 @@ if __name__ == "__main__":
     print("CHAT SERVER RUNNING")
     print(f"Port: {port}")
 
-    socketio.run(
-        app,
-        host="0.0.0.0",
-        port=port
-    )
+socketio.run(
+    app,
+    host="0.0.0.0",
+    port=port,
+    allow_unsafe_werkzeug=True
+)
