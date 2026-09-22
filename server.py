@@ -1,68 +1,88 @@
-from flask import Flask, send_file
-from flask_socketio import SocketIO, emit
+from flask import Flask, render_template
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+app.config["SECRET_KEY"] = "c8real-secret"
 
-username_colors = {}
-
-
-def random_color():
-    return "#{:06x}".format(random.randint(0, 0xFFFFFF))
-
-
-def get_color(username):
-    if username not in username_colors:
-        username_colors[username] = random_color()
-
-    return username_colors[username]
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*"
+)
 
 
 @app.route("/")
-def home():
-    return send_file("chat.html")
+def index():
+    return render_template("chat.html")
+
+
+@socketio.on("join_server")
+def handle_join(data):
+
+    username = data.get("username", "").strip()
+    code = data.get("code", "").strip()
+
+    if username == "" or code == "":
+        return
+
+    join_room(code)
+
+    print(
+        username,
+        "joined server",
+        code
+    )
+
+
+@socketio.on("leave_server")
+def handle_leave(data):
+
+    code = data.get("code", "").strip()
+
+    if code == "":
+        return
+
+    leave_room(code)
 
 
 @socketio.on("send_message")
 def handle_message(data):
+
     username = data.get("username", "").strip()
     message = data.get("message", "").strip()
+    code = data.get("code", "").strip()
 
-    if not username or not message:
+    if username == "":
         return
 
-    color = get_color(username)
+    if message == "":
+        return
+
+    if code == "":
+        return
+
+    color = (
+        "hsl("
+        + str(random.randint(0, 360))
+        + ", 80%, 65%)"
+    )
 
     emit(
         "new_message",
         {
             "username": username,
             "message": message,
-            "color": color
+            "color": color,
+            "code": code
         },
-        broadcast=True
+        room=code
     )
 
 
 if __name__ == "__main__":
-    print("================================")
-    print("       CHAT SERVER RUNNING")
-    print("================================")
-    print("Open: http://127.0.0.1:5000")
-    print("")
 
-import os
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-
-    print("CHAT SERVER RUNNING")
-    print(f"Port: {port}")
-
-socketio.run(
-    app,
-    host="0.0.0.0",
-    port=port,
-    allow_unsafe_werkzeug=True
-)
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=5000
+    )
