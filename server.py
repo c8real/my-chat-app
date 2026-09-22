@@ -1,4 +1,4 @@
-```python
+
 from flask import Flask, send_from_directory, request
 from flask_socketio import SocketIO, join_room, leave_room, emit
 import os
@@ -198,4 +198,4 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", 5000)),
         allow_unsafe_werkzeug=True
     )
-```
+
