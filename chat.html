@@ -8,41 +8,124 @@
             box-sizing: border-box;
         }
 
-        html {
-            margin: 0;
-            padding: 0;
-            background: #1e1e1e !important;
-        }
-
         body {
             margin: 0;
-            padding: 0;
             font-family: Arial, sans-serif;
-            background: #1e1e1e !important;
+            background: transparent;
             color: white;
-            overflow: hidden;
         }
 
-        /* Chat area */
+        /* =========================
+           JOIN SCREEN
+        ========================= */
+
+        #joinScreen {
+            position: fixed;
+            inset: 0;
+            background: #111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #joinBox {
+            width: 350px;
+            padding: 30px;
+            background: #1e1e1e;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        #joinBox h1 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        #joinBox p {
+            color: #aaa;
+            margin-bottom: 25px;
+        }
+
+        #joinBox input {
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        #joinButton {
+            width: 100%;
+            background: #7c3aed;
+            color: white;
+        }
+
+        #joinButton:hover {
+            background: #6d28d9;
+        }
+
+        #joinError {
+            color: #ff5555;
+            margin-top: 12px;
+            display: none;
+        }
+
+        /* =========================
+           CHAT
+        ========================= */
+
         #chat {
             height: calc(100vh - 80px);
             overflow-y: auto;
             padding: 20px;
-            background: transparent !important;
         }
 
-        /* Individual messages */
         .message {
             margin-bottom: 12px;
             font-size: 18px;
-            background: transparent;
+            word-wrap: break-word;
         }
 
         .username {
             font-weight: bold;
         }
 
-        /* Bottom controls */
+        /* =========================
+           TOP BAR
+        ========================= */
+
+        #topBar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: #111;
+            display: flex;
+            align-items: center;
+            padding: 8px 15px;
+            z-index: 10;
+        }
+
+        #serverCode {
+            font-weight: bold;
+            color: #a78bfa;
+        }
+
+        #leaveButton {
+            margin-left: auto;
+            padding: 7px 15px;
+            background: #333;
+            color: white;
+        }
+
+        #leaveButton:hover {
+            background: #444;
+        }
+
+        /* =========================
+           CONTROLS
+        ========================= */
+
         #controls {
             position: fixed;
             bottom: 0;
@@ -50,23 +133,17 @@
             right: 0;
             height: 80px;
             padding: 15px;
-
-            background: transparent !important;
-
+            background: #111;
             display: flex;
             gap: 10px;
         }
 
-        /* Text boxes */
         input {
             border: none;
             border-radius: 6px;
             padding: 12px;
             font-size: 16px;
             outline: none;
-
-            background: rgba(255, 255, 255, 0.90);
-            color: black;
         }
 
         #username {
@@ -77,41 +154,90 @@
             flex: 1;
         }
 
-        /* Send button */
         button {
             border: none;
             border-radius: 6px;
             padding: 12px 25px;
             font-size: 16px;
             cursor: pointer;
-
-            background: rgba(255, 255, 255, 0.90);
-            color: black;
         }
 
         button:hover {
-            background: rgba(204, 204, 204, 0.95);
+            background: #cccccc;
         }
 
-        /* Scrollbar */
-        #chat::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        #chat::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        #chat::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.4);
-            border-radius: 10px;
+        /* Don't let the top bar cover messages */
+        #chat {
+            padding-top: 65px;
         }
     </style>
 </head>
 
 <body>
 
+    <!-- =========================
+         JOIN SCREEN
+    ========================== -->
+
+    <div id="joinScreen">
+
+        <div id="joinBox">
+
+            <h1>c8real Chat</h1>
+
+            <p>
+                Enter a username and server code.
+            </p>
+
+            <input
+                id="joinUsername"
+                type="text"
+                placeholder="Username"
+                maxlength="30"
+            >
+
+            <input
+                id="code"
+                type="text"
+                placeholder="Server Code"
+                maxlength="30"
+                autocomplete="off"
+            >
+
+            <button id="joinButton" onclick="joinServer()">
+                Join Server
+            </button>
+
+            <div id="joinError"></div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================
+         CHAT
+    ========================== -->
+
+    <div id="topBar">
+
+        Server:
+        <span id="serverCode">
+            -
+        </span>
+
+        <button
+            id="leaveButton"
+            onclick="leaveServer()"
+        >
+            Leave
+        </button>
+
+    </div>
+
+
     <div id="chat"></div>
+
 
     <div id="controls">
 
@@ -119,12 +245,14 @@
             id="username"
             type="text"
             placeholder="Username"
+            maxlength="30"
         >
 
         <input
             id="message"
             type="text"
             placeholder="Type a message..."
+            autocomplete="off"
         >
 
         <button onclick="sendMessage()">
@@ -140,32 +268,158 @@
 
         const socket = io();
 
+        let currentCode = "";
+        let currentUsername = "";
 
-        function sendMessage() {
+
+        /* =========================
+           JOIN SERVER
+        ========================== */
+
+        function joinServer() {
 
             const username =
-                document.getElementById("username").value.trim();
+                document
+                    .getElementById("joinUsername")
+                    .value
+                    .trim();
 
-            const message =
-                document.getElementById("message").value.trim();
+            const code =
+                document
+                    .getElementById("code")
+                    .value
+                    .trim();
 
-            if (username === "" || message === "") {
+            const error =
+                document.getElementById("joinError");
+
+
+            if (username === "") {
+
+                error.textContent =
+                    "Please enter a username.";
+
+                error.style.display = "block";
+
                 return;
             }
 
-            socket.emit("send_message", {
+
+            if (code === "") {
+
+                error.textContent =
+                    "Please enter a server code.";
+
+                error.style.display = "block";
+
+                return;
+            }
+
+
+            currentUsername = username;
+            currentCode = code;
+
+
+            /*
+             * Tell the server which room we want to join.
+             */
+
+            socket.emit("join_server", {
+
                 username: username,
-                message: message
+                code: code
+
             });
 
-            document.getElementById("message").value = "";
+
+            document
+                .getElementById("username")
+                .value = username;
+
+
+            document
+                .getElementById("serverCode")
+                .textContent = code;
+
+
+            document
+                .getElementById("joinScreen")
+                .style.display = "none";
+
+
+            document
+                .getElementById("message")
+                .focus();
+
+
+            error.style.display = "none";
         }
 
 
+        /* =========================
+           SEND MESSAGE
+        ========================== */
+
+        function sendMessage() {
+
+            const message =
+                document
+                    .getElementById("message")
+                    .value
+                    .trim();
+
+
+            if (currentUsername === "") {
+                return;
+            }
+
+
+            if (currentCode === "") {
+                return;
+            }
+
+
+            if (message === "") {
+                return;
+            }
+
+
+            socket.emit("send_message", {
+
+                username: currentUsername,
+
+                message: message,
+
+                code: currentCode
+
+            });
+
+
+            document
+                .getElementById("message")
+                .value = "";
+        }
+
+
+        /* =========================
+           RECEIVE MESSAGE
+        ========================== */
+
         socket.on("new_message", function(data) {
+
+            /*
+             * Only display messages from our
+             * current server.
+             */
+
+            if (data.code !== currentCode) {
+                return;
+            }
+
 
             const chat =
                 document.getElementById("chat");
+
 
             const messageDiv =
                 document.createElement("div");
@@ -178,8 +432,10 @@
 
             usernameSpan.className = "username";
 
+
             usernameSpan.textContent =
                 data.username + ": ";
+
 
             usernameSpan.style.color =
                 data.color;
@@ -188,29 +444,114 @@
             const messageSpan =
                 document.createElement("span");
 
+
             messageSpan.textContent =
                 data.message;
 
 
-            messageDiv.appendChild(usernameSpan);
-            messageDiv.appendChild(messageSpan);
+            messageDiv.appendChild(
+                usernameSpan
+            );
 
-            chat.appendChild(messageDiv);
+
+            messageDiv.appendChild(
+                messageSpan
+            );
+
+
+            chat.appendChild(
+                messageDiv
+            );
+
 
             chat.scrollTop =
                 chat.scrollHeight;
         });
 
 
-        document
-            .getElementById("message")
-            .addEventListener("keydown", function(event) {
+        /* =========================
+           LEAVE SERVER
+        ========================== */
 
-                if (event.key === "Enter") {
-                    sendMessage();
-                }
+        function leaveServer() {
+
+            socket.emit("leave_server", {
+
+                code: currentCode
 
             });
+
+
+            currentCode = "";
+            currentUsername = "";
+
+
+            document
+                .getElementById("chat")
+                .innerHTML = "";
+
+
+            document
+                .getElementById("serverCode")
+                .textContent = "-";
+
+
+            document
+                .getElementById("joinScreen")
+                .style.display = "flex";
+        }
+
+
+        /* =========================
+           ENTER KEY
+        ========================== */
+
+        document
+            .getElementById("message")
+            .addEventListener(
+                "keydown",
+                function(event) {
+
+                    if (event.key === "Enter") {
+
+                        sendMessage();
+
+                    }
+
+                }
+            );
+
+
+        document
+            .getElementById("code")
+            .addEventListener(
+                "keydown",
+                function(event) {
+
+                    if (event.key === "Enter") {
+
+                        joinServer();
+
+                    }
+
+                }
+            );
+
+
+        document
+            .getElementById("joinUsername")
+            .addEventListener(
+                "keydown",
+                function(event) {
+
+                    if (event.key === "Enter") {
+
+                        joinServer();
+
+                    }
+
+                }
+            );
 
     </script>
 
