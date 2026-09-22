@@ -1,87 +1,201 @@
-from flask import Flask, render_template
-from flask_socketio import SocketIO, emit, join_room, leave_room
-import random
+```python
+from flask import Flask, send_from_directory, request
+from flask_socketio import SocketIO, join_room, leave_room, emit
+import os
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "c8real-secret"
 
-socketio = SocketIO(
-    app,
-    cors_allowed_origins="*"
+app.config["SECRET_KEY"] = os.environ.get(
+    "SECRET_KEY",
+    "c8real-chat-secret"
 )
 
+# Socket.IO server
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode="threading"
+)
+
+# Keep track of connected users
+users = {}
+
+
+# ============================================================
+# Serve chat.html
+# ============================================================
 
 @app.route("/")
 def index():
-    return render_template("chat.html")
+    return send_from_directory(".", "chat.html")
 
 
-@socketio.on("join_server")
+# ============================================================
+# Health check
+# ============================================================
+
+@app.route("/health")
+def health():
+    return "c8real Chat is online!"
+
+
+# ============================================================
+# Join a server
+# ============================================================
+
+@socketio.on("join")
 def handle_join(data):
+    username = str(data.get("username", "Anonymous")).strip()
+    server_code = str(data.get("server_code", "")).strip()
 
-    username = data.get("username", "").strip()
-    code = data.get("code", "").strip()
+    if not username:
+        username = "Anonymous"
 
-    if username == "" or code == "":
+    if not server_code:
+        emit("error_message", {
+            "message": "You need to enter a server code."
+        })
         return
 
-    join_room(code)
+    # Remove spaces from the server code
+    server_code = server_code.replace(" ", "")
 
-    print(
-        username,
-        "joined server",
-        code
+    # Leave previous room if the user was already in one
+    if request.sid in users:
+        old_room = users[request.sid]["server_code"]
+
+        leave_room(old_room)
+
+        emit(
+            "user_left",
+            {
+                "username": users[request.sid]["username"]
+            },
+            room=old_room
+        )
+
+    # Save user information
+    users[request.sid] = {
+        "username": username,
+        "server_code": server_code
+    }
+
+    # Join the new room
+    join_room(server_code)
+
+    # Tell everyone in the room that the user joined
+    emit(
+        "user_joined",
+        {
+            "username": username
+        },
+        room=server_code
+    )
+
+    # Confirm to the person who joined
+    emit(
+        "joined",
+        {
+            "username": username,
+            "server_code": server_code
+        }
     )
 
 
-@socketio.on("leave_server")
-def handle_leave(data):
-
-    code = data.get("code", "").strip()
-
-    if code == "":
-        return
-
-    leave_room(code)
-
+# ============================================================
+# Send a message
+# ============================================================
 
 @socketio.on("send_message")
 def handle_message(data):
-
-    username = data.get("username", "").strip()
-    message = data.get("message", "").strip()
-    code = data.get("code", "").strip()
-
-    if username == "":
+    if request.sid not in users:
+        emit("error_message", {
+            "message": "You are not in a server."
+        })
         return
 
-    if message == "":
+    message = str(data.get("message", "")).strip()
+
+    if not message:
         return
 
-    if code == "":
-        return
+    username = users[request.sid]["username"]
+    server_code = users[request.sid]["server_code"]
 
-    color = (
-        "hsl("
-        + str(random.randint(0, 360))
-        + ", 80%, 65%)"
-    )
-
+    # Send message to everyone in the same server
     emit(
-        "new_message",
+        "receive_message",
         {
             "username": username,
-            "message": message,
-            "color": color,
-            "code": code
+            "message": message
         },
-        room=code
+        room=server_code
     )
 
 
-socketio.run(
-    app,
-    host="0.0.0.0",
-    port=5000,
-    allow_unsafe_werkzeug=True
-)
+# ============================================================
+# Leave server
+# ============================================================
+
+@socketio.on("leave")
+def handle_leave():
+    if request.sid not in users:
+        return
+
+    username = users[request.sid]["username"]
+    server_code = users[request.sid]["server_code"]
+
+    leave_room(server_code)
+
+    emit(
+        "user_left",
+        {
+            "username": username
+        },
+        room=server_code
+    )
+
+    del users[request.sid]
+
+
+# ============================================================
+# Disconnect
+# ============================================================
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    if request.sid not in users:
+        return
+
+    username = users[request.sid]["username"]
+    server_code = users[request.sid]["server_code"]
+
+    emit(
+        "user_left",
+        {
+            "username": username
+        },
+        room=server_code
+    )
+
+    del users[request.sid]
+
+
+# ============================================================
+# Local development
+#
+# Render should NOT use this.
+# Render should use:
+#
+# gunicorn --threads 100 --workers 1 server:app
+#
+# ============================================================
+
+if __name__ == "__main__":
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        allow_unsafe_werkzeug=True
+    )
+```
