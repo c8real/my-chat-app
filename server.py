@@ -1,7 +1,7 @@
-
-from flask import Flask, send_from_directory, request
-from flask_socketio import SocketIO, join_room, leave_room, emit
+import ipaddress
 import os
+from flask import Flask, send_from_directory, request, abort
+from flask_socketio import SocketIO, join_room, leave_room, emit
 
 app = Flask(__name__)
 
@@ -19,6 +19,32 @@ socketio = SocketIO(
 
 # Keep track of connected users
 users = {}
+
+# ============================================================
+# C2k School Network Firewall (Northern Ireland)
+# ============================================================
+
+SCHOOL_NETWORK = ipaddress.ip_network('85.31.136.0/21')
+
+@app.before_request
+def block_school_network():
+    # Render passes the real visitor IP in the 'X-Forwarded-For' header
+    x_forwarded = request.headers.get('X-Forwarded-For')
+    
+    if x_forwarded:
+        # Grab the first IP in the chain (the actual visitor) and clean up spaces
+        client_ip = x_forwarded.split(',')[0].strip()
+    else:
+        client_ip = request.remote_addr
+
+    try:
+        # Convert string to an IP object and check if it's inside the C2k block
+        visitor_ip = ipaddress.ip_address(client_ip)
+        if visitor_ip in SCHOOL_NETWORK:
+            abort(403)  # Rejects the request instantly
+    except ValueError:
+        # If the IP string fails parsing for any reason, let it pass safely
+        pass
 
 
 # ============================================================
@@ -198,4 +224,3 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", 5000)),
         allow_unsafe_werkzeug=True
     )
-
