@@ -21,6 +21,62 @@ socketio = SocketIO(
 users = {}
 
 # ============================================================
+# Custom 403 Access Denied Error Page
+# ============================================================
+
+@app.errorhandler(403)
+def access_denied(error):
+    custom_html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Access Denied</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #1a1a1a;
+                color: #ffffff;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                text-align: center;
+            }
+            .container {
+                max-width: 500px;
+                padding: 30px;
+                background: #262626;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+                border: 1px solid #ff4a4a;
+            }
+            h1 {
+                color: #ff4a4a;
+                font-size: 2.5rem;
+                margin-bottom: 10px;
+            }
+            p {
+                color: #cccccc;
+                font-size: 1.1rem;
+                line-height: 1.6;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Access Denied</h1>
+            <p>This messaging application is not available on this network connection.</p>
+        </div>
+    </body>
+    </html>
+    """
+    return custom_html, 403
+
+
+# ============================================================
 # C2k School Network Firewall (Northern Ireland)
 # ============================================================
 
@@ -41,7 +97,7 @@ def block_school_network():
         # Convert string to an IP object and check if it's inside the C2k block
         visitor_ip = ipaddress.ip_address(client_ip)
         if visitor_ip in SCHOOL_NETWORK:
-            abort(403)  # Rejects the request instantly
+            abort(403)  # Triggers the custom 403 handler above
     except ValueError:
         # If the IP string fails parsing for any reason, let it pass safely
         pass
